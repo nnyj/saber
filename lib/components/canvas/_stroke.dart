@@ -219,8 +219,32 @@ class Stroke {
     }
   }
 
+  /// Taps within the pen size (max 5 px) are drawn as circles, since
+  /// perfect_freehand draws coincident points as nothing or an oval.
+  /// See https://github.com/saber-notes/saber/issues/600
+  bool get isDot {
+    final maxDistance = min(options.size, 5.0);
+    return points.isNotEmpty &&
+        points.every(
+          (point) =>
+              point.distanceSquaredTo(points.first) <=
+              maxDistance * maxDistance,
+        );
+  }
+
+  List<Offset> _getDotPolygon() {
+    final pressure = points.map((point) => point.pressure ?? 0.5).max;
+    final radius = options.size * (0.5 - options.thinning * (0.5 - pressure));
+    return [
+      for (var i = 0; i < 32; i++)
+        points.first + Offset.fromDirection(pi * i / 16, radius),
+    ];
+  }
+
   @protected
   List<Offset> getPolygon({required StrokeQuality quality}) {
+    if (isDot) return _getDotPolygon();
+
     if (!pressureEnabled) {
       options.simulatePressure = false;
     }
